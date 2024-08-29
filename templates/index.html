@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SocketIO test</title>
+
+    <!-- ajx ライブラリをクライアント側でロード -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+  </head>
+
+  <body>
+
+    <script>
+      console.log("Hello!");
+
+      document.addEventListener("DOMContentLoaded", (event) => {
+        const messageBox = document.getElementById("messages");  // 結果出力
+        const devButton = document.getElementById("send-devices"); // 実行ボタン
+
+        // socketIO の接続
+        var socket = io.connect(
+          "http://192.168.4.102:8888"
+        );
+
+	// python からのメッセージをここで受け取る
+        socket.on("receive_message", function(data){
+          // Flask から {"R1": "終了"} みたいに帰ってくるので
+          for (var key in data){
+            if(key.indexOf('status') != -1) {
+              //{'status': 'xxx'} だったときは制御用。いまは終了ということにしておく。
+              messageBox.innerHTML += '<br>終了しました。ログのダウンロードは<a href="">こちら</a>';
+
+              // ボタンを有効化
+              devButton.disabled = null;
+
+            } else {
+              // それ以外なら id=status-key の中身を更新
+              var domKey='status-'+key;
+              var devUpdate = document.getElementById(domKey);
+              devUpdate.innerHTML = key+": " + data[key] + "<br>";
+            }
+          }
+        });
+
+
+	// send-devices ボタンがクリックされたら実行
+        document
+          .getElementById("send-devices")
+          .addEventListener("click", function() {
+      
+          // ボタンが押されたことの確認
+          console.log("device selected!")
+
+          // 出力エリアを初期化
+          messageBox.innerHTML = ""
+        
+          // ボタンを無効化
+          devButton.disabled = "disabled";
+
+          // チェックされたデバイスを取得
+          const selectedValues = [];
+	  const checkboxes = document.querySelectorAll('input[name="devItems"]:checked');
+         
+          for (let i = 0; i < checkboxes.length; i++){
+            var val=checkboxes[i].value
+            selectedValues.push(val);
+            // 状況を下記のような感じで出力	
+            // <div id="status-R1">R1: 取得中...</div>
+            messageBox.innerHTML += '<div id =status-' + val + '>'+ val + ': 取得中...<br></div>'
+          }
+	  
+          // チェックされたデバイスの確認
+          console.log(selectedValues)
+
+          // flask に送る
+          socket.emit("send_message", {message: selectedValues});
+      
+        });
+
+
+      });
+    
+    </script>
+
+    <table>
+      <tr><td width=300 valgin=top">
+        <h2>Devices</h2>
+        <form name="devList">
+        <label><input type="checkbox" name="devItems" value="R1">R1<br></label>
+        <label><input type="checkbox" name="devItems" value="R2">R2<br></label>
+        <label><input type="checkbox" name="devItems" value="R3">R3<br></label>
+        </form>
+        <div>
+        <button id="send-devices">実行</button>
+      </td>
+    
+      <td width=800 valign="top">
+        <h2>状況</h2>
+        <div id="messages"></div>
+      <td></tr>
+    </table>
+
+  </body>
+</html>
